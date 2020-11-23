@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="LKOopL1_6pVP4K8LNEPgEDbYhGU-mJUFrPBidPvBhDU">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.15.1/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"weiji.hsiao.zone","root":"/","scheme":"Gemini","version":"8.0.2","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"搜索...","empty":"没有找到任何搜索结果：${query}","hits_time":"找到 ${hits} 个搜索结果（用时 ${time} 毫秒）","hits":"找到 ${hits} 个搜索结果"}};
+  </script>
+
+  <meta name="description" content="重启服务之前往往需要检查一下是否还有未处理完的请求。此时可以使用 ss 命令查看端口是否还有 TCP 连接。例如： 123pi@raspberrypi:~ $ ss -nt state established src 192.168.1.26:8888Recv-Q Send-Q Local Address:Port               Peer Address:Port">
+<meta property="og:type" content="article">
+<meta property="og:title" content="使用 bash 进行服务闲置检查">
+<meta property="og:url" content="http://weiji.hsiao.zone/2019/08/10/%E4%BD%BF%E7%94%A8-bash-%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E9%97%B2%E7%BD%AE%E6%A3%80%E6%9F%A5/index.html">
+<meta property="og:site_name" content="算命笔记">
+<meta property="og:description" content="重启服务之前往往需要检查一下是否还有未处理完的请求。此时可以使用 ss 命令查看端口是否还有 TCP 连接。例如： 123pi@raspberrypi:~ $ ss -nt state established src 192.168.1.26:8888Recv-Q Send-Q Local Address:Port               Peer Address:Port">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2019-08-10T12:24:55.000Z">
+<meta property="article:modified_time" content="2020-11-22T14:36:19.724Z">
+<meta property="article:author" content="WeiJi Hsiao">
+<meta property="article:tag" content="Linux">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="http://weiji.hsiao.zone/2019/08/10/%E4%BD%BF%E7%94%A8-bash-%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E9%97%B2%E7%BD%AE%E6%A3%80%E6%9F%A5/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>使用 bash 进行服务闲置检查 | 算命笔记</title>
+  
+    <script>
+      function sendPageView() {
+        if (CONFIG.hostname !== location.hostname) return;
+        var uid = localStorage.getItem('uid') || (Math.random() + '.' + Math.random());
+        localStorage.setItem('uid', uid);
+        navigator.sendBeacon('https://www.google-analytics.com/collect', new URLSearchParams({
+          v  : 1,
+          tid: 'UA-162938104-1',
+          cid: uid,
+          t  : 'pageview',
+          dp : encodeURIComponent(location.pathname)
+        }));
+      }
+      document.addEventListener('pjax:complete', sendPageView);
+      sendPageView();
+    </script>
+
+
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="算命笔记" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">算命笔记</h1>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-overview-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <section class="post-toc-wrap sidebar-panel">
+        </section>
+        <!--/noindex-->
+
+        <section class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="WeiJi Hsiao"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">WeiJi Hsiao</p>
+  <div class="site-description" itemprop="description">算命工程师</div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">22</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">28</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author site-overview-item animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/WeiJiHsiao" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;WeiJiHsiao" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i></a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:weiji.hsiao@gmail.com" title="E-Mail → mailto:weiji.hsiao@gmail.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i></a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/atom.xml" title="RSS → &#x2F;atom.xml"><i class="fa fa-rss fa-fw"></i></a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://www.jianshu.com/u/a6dcbab3bda5" title="Jianshu → https:&#x2F;&#x2F;www.jianshu.com&#x2F;u&#x2F;a6dcbab3bda5" rel="noopener" target="_blank"><i class="fa-custom jianshu fa-fw"></i></a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="https://blog.csdn.net/weixin_45073190" title="CSDN → https:&#x2F;&#x2F;blog.csdn.net&#x2F;weixin_45073190" rel="noopener" target="_blank"><i class="fa-custom csdn fa-fw"></i></a>
+      </span>
+  </div>
+  <div class="cc-license site-overview-item animated" itemprop="license">
+    <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc-sa.svg" alt="Creative Commons"></a>
+  </div>
+
+
+
+        </section>
+      </div>
+        <div class="back-to-top animated">
+          <i class="fa fa-arrow-up"></i>
+          <span>0%</span>
+        </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+
+  <a href="https://github.com/WeiJiHsiao" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+      
+
+      
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://weiji.hsiao.zone/2019/08/10/%E4%BD%BF%E7%94%A8-bash-%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E9%97%B2%E7%BD%AE%E6%A3%80%E6%9F%A5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="WeiJi Hsiao">
+      <meta itemprop="description" content="算命工程师">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="算命笔记">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          使用 bash 进行服务闲置检查
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">发表于</span>
+
+      <time title="创建时间：2019-08-10 20:24:55" itemprop="dateCreated datePublished" datetime="2019-08-10T20:24:55+08:00">2019-08-10</time>
+    </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">更新于</span>
+        <time title="修改时间：2020-11-22 22:36:19" itemprop="dateModified" datetime="2020-11-22T22:36:19+08:00">2020-11-22</time>
+      </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">分类于</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/%E8%B8%A9%E5%9D%91%E7%BB%8F%E9%AA%8C/" itemprop="url" rel="index"><span itemprop="name">踩坑经验</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">阅读次数：</span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>重启服务之前往往需要检查一下是否还有未处理完的请求。此时可以使用 <code>ss</code> 命令查看端口是否还有 TCP 连接。例如：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pi@raspberrypi:~ $ ss -nt state established src 192.168.1.26:8888</span><br><span class="line">Recv-Q Send-Q Local Address:Port               Peer Address:Port              </span><br><span class="line">0      0      192.168.1.26:8888               192.168.1.25:50390</span><br></pre></td></tr></table></figure>
+<p>我们可以统计这条命令输出的行数，若小于 2，则说明服务已经处于闲置状态。脚本如下：</p>
+<a id="more"></a>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#!/bin/bash</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取本机 IP</span></span><br><span class="line">host=$(ifconfig -a | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk <span class="string">&#x27;&#123;print $2&#125;&#x27;</span> | tr -d <span class="string">&quot;addr:&quot;</span>)</span><br><span class="line"><span class="comment"># 超时时间</span></span><br><span class="line">timeout=3600</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="title">check</span></span>()&#123;</span><br><span class="line">  port=<span class="string">&quot;<span class="variable">$1</span>&quot;</span></span><br><span class="line">  begin=$(date +<span class="string">&#x27;%s&#x27;</span>)</span><br><span class="line">  <span class="keyword">while</span> <span class="literal">true</span></span><br><span class="line">  <span class="keyword">do</span></span><br><span class="line">    current=$(date +<span class="string">&#x27;%s&#x27;</span>)</span><br><span class="line">    duration=$((<span class="variable">$current</span>-<span class="variable">$begin</span>))</span><br><span class="line">    <span class="keyword">if</span> [[ <span class="variable">$duration</span> -gt <span class="variable">$timeout</span> ]]; <span class="keyword">then</span></span><br><span class="line">      <span class="comment"># 超时退出</span></span><br><span class="line">      result=<span class="string">&quot;TIMEOUT&quot;</span></span><br><span class="line">      code=1</span><br><span class="line">      <span class="built_in">break</span></span><br><span class="line">    count=$(ss -nt state established src <span class="variable">$host</span>:<span class="variable">$port</span> | wc -l)</span><br><span class="line">    <span class="keyword">if</span> [[ <span class="variable">$count</span> -lt 2 ]]; <span class="keyword">then</span></span><br><span class="line">      <span class="comment"># 闲置退出</span></span><br><span class="line">      result=<span class="string">&quot;IDLE&quot;</span></span><br><span class="line">      code=0</span><br><span class="line">      <span class="built_in">break</span></span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">      sleep 2</span><br><span class="line">    <span class="keyword">fi</span></span><br><span class="line">  <span class="keyword">done</span></span><br><span class="line">  <span class="built_in">echo</span> <span class="string">&quot;the result is <span class="variable">$result</span>&quot;</span></span><br><span class="line">  <span class="built_in">return</span> <span class="variable">$code</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> [[ <span class="variable">$#</span> -ne 1 ]]; <span class="keyword">then</span></span><br><span class="line">  <span class="built_in">echo</span> <span class="string">&quot;Usage: <span class="variable">$0</span> [port]&quot;</span></span><br><span class="line">  <span class="built_in">exit</span> 1</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">  check <span class="string">&quot;<span class="variable">$1</span>&quot;</span></span><br><span class="line">  <span class="built_in">exit</span> $?</span><br><span class="line"><span class="keyword">fi</span></span><br></pre></td></tr></table></figure>
+<p>如果 <code>ss</code> 命令发生错误怎么办？为了进一步完善脚本，我们需要加入异常处理机制。<code>bash</code> 中没有 <code>try...catch..</code> 之类的语法，那么该如何捕获异常呢？下面介绍两个特殊的写法：</p>
+<ul>
+<li><code>command1 || command2</code>：当且仅当 <code>command1</code> 发生错误时执行 <code>command2</code>。</li>
+<li><code>command1 &amp;&amp; command2</code>：当且仅当 <code>command1</code> 没有错误时执行 <code>command2</code>。</li>
+</ul>
+<p>利用上面这两个特性，我们引入异常处理，把脚本改写成：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#!/bin/bash</span></span><br><span class="line"></span><br><span class="line"><span class="built_in">set</span> -o pipefail</span><br><span class="line"></span><br><span class="line"><span class="comment"># 获取本机 IP</span></span><br><span class="line">host=$(ifconfig -a | grep inet | grep -v 127.0.0.1 | grep -v inet6 | awk <span class="string">&#x27;&#123;print $2&#125;&#x27;</span> | tr -d <span class="string">&quot;addr:&quot;</span>)</span><br><span class="line"><span class="comment"># 超时时间</span></span><br><span class="line">timeout=3600</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="title">check</span></span>()&#123;</span><br><span class="line">  port=<span class="string">&quot;<span class="variable">$1</span>&quot;</span></span><br><span class="line">  begin=$(date +<span class="string">&#x27;%s&#x27;</span>)</span><br><span class="line">  <span class="keyword">while</span> <span class="literal">true</span></span><br><span class="line">  <span class="keyword">do</span></span><br><span class="line">    current=$(date +<span class="string">&#x27;%s&#x27;</span>)</span><br><span class="line">    duration=$((<span class="variable">$current</span>-<span class="variable">$begin</span>))</span><br><span class="line">    <span class="keyword">if</span> [[ <span class="variable">$duration</span> -gt <span class="variable">$timeout</span> ]]; <span class="keyword">then</span></span><br><span class="line">      <span class="comment"># 超时退出</span></span><br><span class="line">      result=<span class="string">&quot;TIMEOUT&quot;</span></span><br><span class="line">      code=1</span><br><span class="line">      <span class="built_in">break</span></span><br><span class="line">    &#123;</span><br><span class="line">      count=$(ss -nt state established src <span class="variable">$host</span>:<span class="variable">$port</span> | wc -l) &amp;&amp;</span><br><span class="line">      <span class="keyword">if</span> [[ <span class="variable">$count</span> -lt 2 ]]; <span class="keyword">then</span></span><br><span class="line">        <span class="comment"># 闲置退出</span></span><br><span class="line">        result=<span class="string">&quot;IDLE&quot;</span></span><br><span class="line">        code=0</span><br><span class="line">        <span class="built_in">break</span></span><br><span class="line">      <span class="keyword">else</span></span><br><span class="line">        sleep 2</span><br><span class="line">      <span class="keyword">fi</span></span><br><span class="line">    &#125;||&#123;</span><br><span class="line">      <span class="comment"># 异常退出</span></span><br><span class="line">      result=<span class="string">&quot;ERROR&quot;</span></span><br><span class="line">      code=1</span><br><span class="line">      <span class="built_in">break</span></span><br><span class="line">    &#125;</span><br><span class="line">  <span class="keyword">done</span></span><br><span class="line">  <span class="built_in">echo</span> <span class="string">&quot;the result is <span class="variable">$result</span>&quot;</span></span><br><span class="line">  <span class="built_in">return</span> <span class="variable">$code</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> [[ <span class="variable">$#</span> -ne 1 ]]; <span class="keyword">then</span></span><br><span class="line">  <span class="built_in">echo</span> <span class="string">&quot;Usage: <span class="variable">$0</span> [port]&quot;</span></span><br><span class="line">  <span class="built_in">exit</span> 1</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">  check <span class="string">&quot;<span class="variable">$1</span>&quot;</span></span><br><span class="line">  <span class="built_in">exit</span> $?</span><br><span class="line"><span class="keyword">fi</span></span><br></pre></td></tr></table></figure>
+<p><code>ss -nt state established src $host:$port | wc -l</code> 利用了管道，而默认情况下，前面的 <code>ss</code> 命令出错并不会影响后面的 <code>wc</code> 命令的执行。为了捕获管道中的错误，我们在脚本开头添加了 <code>set -o pipefail</code>。</p>
+<p>现在我们的脚本可以检测一个服务实例是否闲置。如果我们需要同时检查多个实例该怎么办？如果可以并行地执行我们的 <code>check</code> 函数就好了。我们知道，在一条命令后面加上 <code>&amp;</code>，就可以将它放到子 shell 中执行，达到多线程的效果。进一步地，我们可以用 <code>wait</code> 命令实现多线程同步。基于此，我们给出可以同时检查多个实例的 <code>check_all</code> 函数：</p>
+<pre class="highlight"><code class="bash"><span class="hljs-function"><span class="hljs-title">check_all</span></span>()&#123;
+  ports=<span class="hljs-string">"<span class="hljs-variable">$#</span>"</span>
+  anyfailed=0
+  <span class="hljs-keyword">for</span> port <span class="hljs-keyword">in</span> <span class="hljs-variable">$ports</span>
+  <span class="hljs-keyword">do</span>
+    check <span class="hljs-variable">$port</span> &amp;
+  <span class="hljs-keyword">done</span>
+  <span class="hljs-keyword">for</span> pid <span class="hljs-keyword">in</span> $(<span class="hljs-built_in">jobs</span> -p)
+  <span class="hljs-keyword">do</span>
+    <span class="hljs-built_in">wait</span> <span class="hljs-variable">$pid</span>
+    <span class="hljs-keyword">if</span> [[ $? -ne 0 ]]; <span class="hljs-keyword">then</span>
+      anyfailed=1
+    <span class="hljs-keyword">fi</span>
+  <span class="hljs-keyword">done</span>
+  <span class="hljs-built_in">return</span> <span class="hljs-variable">$anyfailed</span>
+&#125;</code></pre>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          
+
+<div class="post-copyright">
+<ul>
+  <li class="post-copyright-author">
+      <strong>本文作者： </strong>WeiJi Hsiao
+  </li>
+  <li class="post-copyright-link">
+      <strong>本文链接：</strong>
+      <a href="http://weiji.hsiao.zone/2019/08/10/%E4%BD%BF%E7%94%A8-bash-%E8%BF%9B%E8%A1%8C%E6%9C%8D%E5%8A%A1%E9%97%B2%E7%BD%AE%E6%A3%80%E6%9F%A5/" title="使用 bash 进行服务闲置检查">http://weiji.hsiao.zone/2019/08/10/使用-bash-进行服务闲置检查/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-SA</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+          <div class="followme">
+  <span>欢迎关注我的其它发布渠道</span>
+
+  <div class="social-list">
+
+      <div class="social-item">
+        <a target="_blank" class="social-link" href="/atom.xml">
+          <span class="icon">
+            <i class="fa fa-rss"></i>
+          </span>
+
+          <span class="label">RSS</span>
+        </a>
+      </div>
+
+      <div class="social-item">
+        <a target="_blank" class="social-link" href="https://www.jianshu.com/u/a6dcbab3bda5">
+          <span class="icon">
+            <i class="fa-custom jianshu"></i>
+          </span>
+
+          <span class="label">Jianshu</span>
+        </a>
+      </div>
+
+      <div class="social-item">
+        <a target="_blank" class="social-link" href="https://blog.csdn.net/weixin_45073190">
+          <span class="icon">
+            <i class="fa-custom csdn"></i>
+          </span>
+
+          <span class="label">CSDN</span>
+        </a>
+      </div>
+  </div>
+</div>
+
+          <div class="post-tags">
+              <a href="/tags/Linux/" rel="tag"><i class="fa fa-tag"></i> Linux</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2019/01/16/%E6%A6%82%E7%8E%87%E9%A2%84%E6%B5%8B%E7%9A%84%E8%AF%84%E4%BC%B0%E6%96%B9%E6%B3%95%E7%AE%80%E4%BB%8B/" rel="prev" title="概率预测的评估方法简介">
+                  <i class="fa fa-chevron-left"></i> 概率预测的评估方法简介
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2019/10/09/%E6%97%B6%E9%97%B4%E5%BA%8F%E5%88%97%E9%A2%84%E6%B5%8B%E6%96%B9%E6%B3%95%E4%B9%8B-DeepAR/" rel="next" title="时间序列预测方法之 DeepAR">
+                  时间序列预测方法之 DeepAR <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+      
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      const activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      const commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      
+
+      
+
+<div class="copyright">
+  
+  &copy; 2018 – 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">WeiJi Hsiao</span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/" class="theme-link" rel="noopener" target="_blank">NexT.Gemini</a> 强力驱动
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.2.1/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/next-boot.js"></script>
+
+  
+  <script>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+
+
+
+  
+
+  
+      <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css">
+
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1.7.0/dist/gitalk.css">
+
+<script>
+NexT.utils.loadComments('#gitalk-container', () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1.7.0/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : 'dc9f68f668cbb73c45db',
+      clientSecret: 'ee090e52012a76c5604eb25b328dca2475c434e9',
+      repo        : 'WeiJiHsiao.github.io',
+      owner       : 'WeiJiHsiao',
+      admin       : ['WeiJiHsiao'],
+      id          : '3c33538c51fcf1024ec548e7d66eb5c7',
+        language: 'zh-CN',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
